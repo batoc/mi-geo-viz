@@ -1,0 +1,26 @@
+{
+  "name": "mi-geo-viz",
+  "version": "0.1",
+  "visualization": {
+    "name": "Mapa Cali — Comunas/Barrios/Corregimientos/Veredas",
+    "description": "Mapa con 4 capas activables y métrica coloreada",
+    "iconUrl": "",
+    "create": "index.js",
+    "modules": []
+  },
+  "configParams": [
+    { "name": "geoJsonUrl_comuna",      "type": "TEXT",   "displayName": "URL GeoJSON Comunas" },
+    { "name": "joinKey_comuna",         "type": "TEXT",   "displayName": "Propiedad JOIN Comunas" },
+    { "name": "geoJsonUrl_barrio",      "type": "TEXT",   "displayName": "URL GeoJSON Barrios" },
+    { "name": "joinKey_barrio",         "type": "TEXT",   "displayName": "Propiedad JOIN Barrios" },
+    { "name": "geoJsonUrl_corregimiento","type": "TEXT",   "displayName": "URL GeoJSON Corregimientos" },
+    { "name": "joinKey_corregimiento",  "type": "TEXT",   "displayName": "Propiedad JOIN Corregimientos" },
+    { "name": "geoJsonUrl_vereda",      "type": "TEXT",   "displayName": "URL GeoJSON Veredas" },
+    { "name": "joinKey_vereda",         "type": "TEXT",   "displayName": "Propiedad JOIN Veredas" },
+    { "name": "metric",                 "type": "METRIC", "displayName": "Métrica a colorear" }
+  ],
+  "supportedDataRoles": {
+    "DIMENSION": { "max": 4 },
+    "METRIC":    { "max": 1 }
+  }
+}
