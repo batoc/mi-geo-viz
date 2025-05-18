@@ -1,65 +1,67 @@
+// index.js
 (function() {
-  const dscc = self.dscc;
-  let map, overlayMaps = {}, loaded = 0, types = ['comuna','barrio','corregimiento','vereda'];
-  dscc.subscribeToData(update, {transform: dscc.objectTransform});
+  // dscc es el namespace de Community Viz
+  const dscc = globalThis.dscc;
 
-  function update(data, config) {
-    if (!map) initMap();
-    // construye lookup por capa
-    const lookup = {};
-    types.forEach(t => lookup[t]={});
-    data.tables.DEFAULT.forEach(r => {
-      types.forEach(t=>{
-        let key = r[config['joinKey_'+t]].value;
-        let val = +r[config.metric].value;
-        if (key && !isNaN(val)) lookup[t][key] = val;
-      });
-    });
-    // escala de color generadora
-    function makeScale(vals) {
-      if (!vals.length) return ()=>'#ccc';
-      let mn = Math.min(...vals), mx = Math.max(...vals),
-          cols = ['#FFEDA0','#FED976','#FEB24C','#FD8D3C','#FC4E2A','#E31A1C','#B10026'];
-      return v=> v==null?'#ccc': cols[Math.floor((v-mn)/(mx-mn||1)*(cols.length-1))];
+  // Nos suscribimos a cambios de datos y de opciones
+  dscc.subscribeToData(drawMap, {transform: dscc.identity});
+  dscc.onOptionsChanged(drawMap);
+
+  let map, comunaLayer, corregLayer;
+
+  function drawMap(data, options) {
+    // Primera vez: inicializar el contenedor
+    if (!map) {
+      const container = document.createElement('div');
+      container.id = 'map';
+      container.style.width = '100%';
+      container.style.height = '100%';
+      document.body.appendChild(container);
+
+      map = L.map('map').setView([3.45, -76.53], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
     }
-    const scales = {};
-    types.forEach(t=> scales[t]=makeScale(Object.values(lookup[t])));
 
-    // carga cada GeoJSON
-    types.forEach(t=>{
-      let url = config['geoJsonUrl_'+t];
-      if(!url) return;
-      fetch(url).then(r=>r.json()).then(geojson=>{
-        let layer = L.geoJSON(geojson, {
-          style: f=>{
-            let k = f.properties[config['joinKey_'+t]];
-            return { fillColor: scales[t](lookup[t][k]), color:'#333', weight:1, fillOpacity:0.7 };
-          },
-          onEachFeature:(f,l)=>{
-            let k = f.properties[config['joinKey_'+t]];
-            l.bindPopup(`<b>${t}</b>: ${k}<br><b>${config.metric}</b>: ${lookup[t][k]||'N/A'}`);
-          }
-        }).addTo(map);
-        overlayMaps[t.charAt(0).toUpperCase()+t.slice(1)] = layer;
-        loaded++;
-        if(loaded===types.length) L.control.layers(null, overlayMaps).addTo(map);
-      }).catch(console.error);
-    });
-  }
+    // Eliminar capas anteriores
+    if (comunaLayer)     { map.removeLayer(comunaLayer);     comunaLayer = null; }
+    if (corregLayer)     { map.removeLayer(corregLayer);     corregLayer = null; }
 
-  function initMap() {
-    const div = document.createElement('div');
-    div.id='map'; div.style='width:100%;height:500px';
-    document.body.appendChild(div);
-    let link = document.createElement('link');
-    link.rel='stylesheet'; link.href='https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
-    document.head.appendChild(link);
-    let scr = document.createElement('script');
-    scr.src='https://unpkg.com/leaflet@1.7.1/dist/leaflet.js';
-    document.body.appendChild(scr);
-    map = L.map('map').setView([3.44,-76.53],12);
-    scr.onload = ()=> L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom:19, attribution:'© OpenStreetMap'
-    }).addTo(map);
+    // Si el usuario pidió mostrar comunas:
+    if (options.showComunas && options.comunasUrl) {
+      fetch(options.comunasUrl)
+        .then(r => r.json())
+        .then(geojson => {
+          comunaLayer = L.geoJson(geojson, {
+            style: { color: '#2a9df4', weight: 2, fillOpacity: 0.1 },
+            onEachFeature: (feature, layer) => {
+              // Supongamos propiedad "comuna" coincide con campo de tu fuente
+              const key = feature.properties.comuna;
+              // Buscamos en los datos la fila donde "Comuna" == key
+              const row = data.tables.DEFAULT.find(r => r['Comuna'] === key);
+              const val = row ? row['Beneficiarios'] : '–';
+              layer.bindPopup(`Comuna ${key}: ${val}`);
+            }
+          }).addTo(map);
+        });
+    }
+
+    // Si pidió mostrar corregimientos:
+    if (options.showCorregimientos && options.corregimientosUrl) {
+      fetch(options.corregimientosUrl)
+        .then(r => r.json())
+        .then(geojson => {
+          corregLayer = L.geoJson(geojson, {
+            style: { color: '#f45242', weight: 2, fillOpacity: 0.1 },
+            onEachFeature: (feature, layer) => {
+              const key = feature.properties.corregimien;
+              const row = data.tables.DEFAULT.find(r => r['Corregimiento'] === key);
+              const val = row ? row['Beneficiarios'] : '–';
+              layer.bindPopup(`Corregimiento ${key}: ${val}`);
+            }
+          }).addTo(map);
+        });
+    }
   }
 })();
